@@ -1,4 +1,3 @@
-from PIL import GifImagePlugin
 import os
 import logging
 import shutil
