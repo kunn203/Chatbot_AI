@@ -103,8 +103,8 @@ class LearningAssistantBot:
             
         # Khởi tạo Retriever thủ công để tránh lỗi thư viện Langchain
         retriever = CustomSupabaseRetriever(
-            supabase_client=self.vector_db.client,
-            embeddings=self.vector_db.embedding,
+            supabase_client=self.vector_db._client,
+            embeddings=self.vector_db.embeddings,
             owner=current_user,
             k=5
         )
@@ -145,8 +145,8 @@ class LearningAssistantBot:
             
         # Khởi tạo Retriever thủ công để tránh lỗi thư viện Langchain
         retriever = CustomSupabaseRetriever(
-            supabase_client=self.vector_db.client,
-            embeddings=self.vector_db.embedding,
+            supabase_client=self.vector_db._client,
+            embeddings=self.vector_db.embeddings,
             owner=current_user,
             k=5
         )
