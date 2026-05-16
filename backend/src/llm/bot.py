@@ -6,7 +6,35 @@ from langchain_mistralai import ChatMistralAI
 from langchain_classic.chains import create_retrieval_chain
 from langchain_classic.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.documents import Document
+from langchain_core.retrievers import BaseRetriever
 from langchain_community.vectorstores import SupabaseVectorStore
+from supabase.client import Client
+
+class CustomSupabaseRetriever(BaseRetriever):
+    supabase_client: Client
+    embeddings: object
+    owner: str
+    k: int = 5
+
+    def _get_relevant_documents(self, query: str, *, run_manager=None):
+        embedding = self.embeddings.embed_query(query)
+        try:
+            res = self.supabase_client.rpc(
+                "match_documents",
+                {
+                    "query_embedding": embedding,
+                    "match_count": self.k,
+                    "filter": {"owner": self.owner}
+                }
+            ).execute()
+            docs = []
+            for r in res.data:
+                docs.append(Document(page_content=r["content"], metadata=r["metadata"]))
+            return docs
+        except Exception as e:
+            logger.error(f"Lỗi rpc match_documents: {e}")
+            return []
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -73,13 +101,12 @@ class LearningAssistantBot:
                 "context": []
             }
             
-        # Khởi tạo Retriever động theo User (Lọc theo Metadata owner)
-        search_kwargs = {"k": 5}
-        search_kwargs["filter"] = {"owner": current_user}
-            
-        retriever = self.vector_db.as_retriever(
-            search_type="similarity",
-            search_kwargs=search_kwargs
+        # Khởi tạo Retriever thủ công để tránh lỗi thư viện Langchain
+        retriever = CustomSupabaseRetriever(
+            supabase_client=self.vector_db.client,
+            embeddings=self.vector_db.embedding,
+            owner=current_user,
+            k=5
         )
         
         # Liên kết chain
@@ -116,13 +143,12 @@ class LearningAssistantBot:
                     yield chunk.content
             return
             
-        # Khởi tạo Retriever động theo User (Lọc theo Metadata owner)
-        search_kwargs = {"k": 5}
-        search_kwargs["filter"] = {"owner": current_user}
-            
-        retriever = self.vector_db.as_retriever(
-            search_type="similarity",
-            search_kwargs=search_kwargs
+        # Khởi tạo Retriever thủ công để tránh lỗi thư viện Langchain
+        retriever = CustomSupabaseRetriever(
+            supabase_client=self.vector_db.client,
+            embeddings=self.vector_db.embedding,
+            owner=current_user,
+            k=5
         )
         
         # Liên kết chain
