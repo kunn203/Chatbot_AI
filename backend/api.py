@@ -82,7 +82,7 @@ async def chat_endpoint(request: ChatRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/upload")
-async def upload_endpoint(
+def upload_endpoint(
     file: UploadFile = File(...),
     currentUser: str = Form(None)
 ):
@@ -123,7 +123,7 @@ async def upload_endpoint(
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/delete")
-async def delete_endpoint(request: DeleteRequest):
+def delete_endpoint(request: DeleteRequest):
     if not request.currentUser:
         raise HTTPException(status_code=401, detail="Unauthorized")
         
