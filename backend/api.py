@@ -20,10 +20,10 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Gia Sư AI API", description="API phục vụ hệ thống RAG Learning Assistant")
 
-# Cho phép ứng dụng React giao tiếp với API (Cấu hình CORS mở rộng cho Vercel)
+# Cho phép tất cả các domain (kể cả Vercel) giao tiếp với API
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Cho phép mọi tên miền gọi tới (bao gồm Vercel)
+    allow_origins=["*"],
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
