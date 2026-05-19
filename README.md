@@ -56,31 +56,3 @@ npm run dev
 ```
 
 Truy cập hệ thống thông qua địa chỉ: `http://localhost:5173/`
-
----
-
-## 🌐 Hướng dẫn Deploy lên mạng (Production)
-
-Dự án này đã được tối ưu theo kiến trúc "Stateless", tức là không lưu rác ở ổ cứng, cực kỳ dễ Deploy!
-
-**Bước 1: Cấu hình Github**
-- Đẩy toàn bộ mã nguồn của bạn lên một repository trên Github. (Yên tâm, các file cấu hình `.gitignore` đã loại bỏ các thông tin nhạy cảm).
-
-**Bước 2: Triển khai Backend lên Render.com**
-1. Đăng ký tài khoản trên [Render](https://render.com).
-2. Tạo mới một **Web Service**, kết nối với repository GitHub của dự án.
-3. Trong phần cấu hình, điền:
-   - Root Directory: `backend`
-   - Build Command: `pip install -r requirements.txt`
-   - Start Command: Sử dụng `Procfile` (đã có sẵn) hoặc gõ thủ công `uvicorn api:app --host 0.0.0.0 --port 10000`
-4. Mở phần **Environment Variables** và nhập 3 khóa: `MISTRAL_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`.
-
-**Bước 3: Triển khai Frontend lên Vercel**
-1. Đăng ký [Vercel](https://vercel.com) và nhập repository GitHub của bạn vào.
-2. Chọn Framework Preset là **Vite**.
-3. Tại phần Environment Variables, hãy nhập `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
-4. Quan trọng nhất: Thêm biến `VITE_API_URL` và copy cái đường link Render bạn nhận được ở Bước 2 dán vào đây (Vd: `https://rag-backend-xyz.onrender.com`).
-5. Bấm **Deploy**. Chúc mừng, bạn đã có một ứng dụng RAG AI thực thụ chạy trên Internet!
-
----
-*Dự án được xây dựng và hoàn thiện để hướng tới tiêu chuẩn của một AI Cloud Application hiện đại.*
