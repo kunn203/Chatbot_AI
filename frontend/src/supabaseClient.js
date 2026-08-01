@@ -9,7 +9,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '', {
   auth: {
-    storage: window.sessionStorage,
+    // Dùng localStorage để phiên đăng nhập được giữ lại khi đóng tab/trình duyệt
+    storage: window.localStorage,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true

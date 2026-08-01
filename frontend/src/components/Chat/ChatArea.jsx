@@ -133,7 +133,7 @@ export default function ChatArea({ messages, setMessages, currentUser, currentUs
         // Cập nhật nội dung của tin nhắn cuối cùng liên tục
         setMessages(prev => {
           const newMsgs = [...prev];
-          newMsgs[newMsgs.length - 1].content = aiResponse;
+          newMsgs[newMsgs.length - 1] = { ...newMsgs[newMsgs.length - 1], content: aiResponse };
           return newMsgs;
         });
       }
