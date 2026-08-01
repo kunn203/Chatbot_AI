@@ -1,9 +1,9 @@
 import { User, LogOut, Settings } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
-import { supabase } from '../../supabaseClient';
 
-export default function UserProfile({ currentUser, currentUserName, onNavigateToChangePassword }) {
+export default function UserProfile({ currentUser, currentUserName, onNavigateToChangePassword, onLogout }) {
   const [showMenu, setShowMenu] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -20,7 +20,17 @@ export default function UserProfile({ currentUser, currentUserName, onNavigateTo
   }, []);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    setIsLoggingOut(true);
+    try {
+      // Gọi callback từ App.jsx → flush save trước → rồi mới signOut
+      if (onLogout) {
+        await onLogout();
+      }
+    } catch (error) {
+      console.error("Lỗi khi logout:", error);
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
   const handleChangePassword = () => {
@@ -58,10 +68,11 @@ export default function UserProfile({ currentUser, currentUserName, onNavigateTo
           </button>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors font-bold"
+            disabled={isLoggingOut}
+            className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors font-bold disabled:opacity-50"
           >
             <LogOut className="w-4 h-4" />
-            Logout
+            {isLoggingOut ? 'Đang lưu dữ liệu...' : 'Logout'}
           </button>
         </div>
       )}

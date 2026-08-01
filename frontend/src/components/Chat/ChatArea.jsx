@@ -57,7 +57,7 @@ function preprocessLaTeX(content) {
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
-export default function ChatArea({ messages, setMessages, currentUser, currentUserName, onNavigateToLogin, onNavigateToChangePassword }) {
+export default function ChatArea({ messages, setMessages, currentUser, currentUserName, onNavigateToLogin, onNavigateToChangePassword, onLogout }) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
@@ -163,6 +163,7 @@ export default function ChatArea({ messages, setMessages, currentUser, currentUs
               currentUser={currentUser}
               currentUserName={currentUserName}
               onNavigateToChangePassword={onNavigateToChangePassword}
+              onLogout={onLogout}
             />
           )}
         </div>

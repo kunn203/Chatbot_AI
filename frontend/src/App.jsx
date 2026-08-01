@@ -27,16 +27,49 @@ function App() {
   // Đã khởi tạo auth lần đầu chưa (tránh onAuthStateChange gọi kép)
   const hasInitialAuth = useRef(false);
 
+  // Ref luôn giữ giá trị mới nhất của sessions & currentUser (cho flush/beforeunload dùng)
+  const sessionsRef = useRef([]);
+  const currentUserRef = useRef(null);
+
   // ---- DỮ LIỆU TẬP TRUNG (LIFTED STATE) ----
   // 1. Quản lý danh sách Materials
   const [materials, setMaterials] = useState([]);
 
   // 2. Quản lý danh sách các đoạn Chat 
-  // Cấu trúc 1 session: { id: string, title: string, messages: array, owner: string|null }
   const [sessions, setSessions] = useState(() => [createDefaultSession()]);
 
   // 3. ID của session Chat đang mở
   const [activeSessionId, setActiveSessionId] = useState(null);
+
+  // Đồng bộ ref mỗi khi state thay đổi
+  useEffect(() => { sessionsRef.current = sessions; }, [sessions]);
+  useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
+
+  // ---- HÀM LƯU SESSIONS LÊN CLOUD (DÙNG CHUNG) ----
+  const saveSessionsToCloud = useCallback(async (sessionsToSave, ownerEmail) => {
+    if (!ownerEmail) return;
+    const userSessions = sessionsToSave.filter(s => s.owner === ownerEmail);
+    if (userSessions.length === 0) return;
+
+    const upsertData = userSessions.map(s => ({
+      id: s.id,
+      title: s.title,
+      messages: s.messages,
+      owner: s.owner,
+      updated_at: new Date().toISOString()
+    }));
+
+    const { error } = await supabase.from('rag_sessions').upsert(upsertData);
+    if (error) console.error("Lỗi khi đồng bộ sessions lên Cloud:", error);
+  }, []);
+
+  // ---- HÀM FLUSH: Lưu ngay lập tức (dùng trước khi logout hoặc đóng tab) ----
+  const flushSaveToCloud = useCallback(async () => {
+    const user = currentUserRef.current;
+    const sess = sessionsRef.current;
+    if (!user) return;
+    await saveSessionsToCloud(sess, user);
+  }, [saveSessionsToCloud]);
 
   // Hàm tải dữ liệu từ Cloud Supabase
   const loadCloudData = useCallback(async (userEmail) => {
@@ -89,6 +122,14 @@ function App() {
     }
   }, []);
 
+  // ---- HÀM LOGOUT AN TOÀN: Lưu xong → mới signOut ----
+  const handleLogout = useCallback(async () => {
+    // 1. Lưu tất cả dữ liệu chưa đồng bộ lên cloud TRƯỚC
+    await flushSaveToCloud();
+    // 2. Sau khi đã lưu xong mới signOut
+    await supabase.auth.signOut();
+  }, [flushSaveToCloud]);
+
   useEffect(() => {
     // 1. Lấy session hiện tại khi app vừa khởi chạy
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -116,19 +157,14 @@ function App() {
     return () => subscription.unsubscribe();
   }, [loadCloudData]);
 
-  // ---- ĐỒNG BỘ SESSION LÊN CLOUD SUPABASE BẰNG EFFECT ----
+  // ---- LƯU DỮ LIỆU KHI ĐÓNG TAB / TRÌNH DUYỆT ----
   useEffect(() => {
-    const saveSessionsToCloud = async () => {
-      // Nếu đang trong quá trình logout → bỏ qua, không ghi đè cloud
-      if (isLoggingOut.current) {
-        isLoggingOut.current = false; // Reset cờ sau khi đã chặn thành công
-        return;
-      }
-      // Nếu đang tải dữ liệu cloud → bỏ qua (dữ liệu mới load từ cloud, không cần ghi lại)
-      if (isLoadingCloud.current) return;
-      if (!currentUser) return;
+    const handleBeforeUnload = () => {
+      const user = currentUserRef.current;
+      const sess = sessionsRef.current;
+      if (!user) return;
 
-      const userSessions = sessions.filter(s => s.owner === currentUser);
+      const userSessions = sess.filter(s => s.owner === user);
       if (userSessions.length === 0) return;
 
       const upsertData = userSessions.map(s => ({
@@ -139,17 +175,62 @@ function App() {
         updated_at: new Date().toISOString()
       }));
 
-      const { error } = await supabase.from('rag_sessions').upsert(upsertData);
-      if (error) console.error("Lỗi khi đồng bộ sessions lên Cloud:", error);
+      // Dùng sendBeacon để gửi data ngay cả khi tab đang đóng
+      // Fallback: dùng navigator.sendBeacon không được thì fetch keepalive
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      if (supabaseUrl && supabaseKey) {
+        const url = `${supabaseUrl}/rest/v1/rag_sessions?on_conflict=id`;
+        const headers = {
+          'Content-Type': 'application/json',
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Prefer': 'resolution=merge-duplicates'
+        };
+
+        // Thử sendBeacon trước (đáng tin cậy nhất khi đóng tab)
+        const blob = new Blob([JSON.stringify(upsertData)], { type: 'application/json' });
+        const beaconSent = navigator.sendBeacon(url + '&apikey=' + supabaseKey, blob);
+
+        if (!beaconSent) {
+          // Fallback: fetch với keepalive
+          fetch(url, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(upsertData),
+            keepalive: true
+          }).catch(() => {});
+        }
+      }
     };
 
-    // Debounce (gom nhóm) lệnh gọi API để tránh Spam Database khi AI đang gõ chữ liên tục
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
+  // ---- ĐỒNG BỘ SESSION LÊN CLOUD SUPABASE BẰNG EFFECT (DEBOUNCED) ----
+  useEffect(() => {
+    const debouncedSave = async () => {
+      // Nếu đang trong quá trình logout → bỏ qua, không ghi đè cloud
+      if (isLoggingOut.current) {
+        isLoggingOut.current = false;
+        return;
+      }
+      // Nếu đang tải dữ liệu cloud → bỏ qua
+      if (isLoadingCloud.current) return;
+      if (!currentUser) return;
+
+      await saveSessionsToCloud(sessions, currentUser);
+    };
+
+    // Debounce: gom nhóm lệnh gọi API để tránh spam
     const timeoutId = setTimeout(() => {
-      saveSessionsToCloud();
+      debouncedSave();
     }, 1500);
 
     return () => clearTimeout(timeoutId);
-  }, [sessions, currentUser]);
+  }, [sessions, currentUser, saveSessionsToCloud]);
 
 
   // ---- CÁC HÀM XỬ LÝ SỰ KIỆN ----
@@ -199,7 +280,7 @@ function App() {
           if (s.messages.length === 1 && updatedMessages.length > 1 && updatedMessages[1].role === 'user') {
             updatedTitle = updatedMessages[1].content.length > 25 ? updatedMessages[1].content.substring(0, 25) + '...' : updatedMessages[1].content;
           }
-          // Đảm bảo owner luôn được gắn đúng (sửa session cũ bị thiếu owner)
+          // Đảm bảo owner luôn được gắn đúng
           return { ...s, messages: updatedMessages, title: updatedTitle, owner: s.owner || currentUser };
         }
         return s;
@@ -234,7 +315,6 @@ function App() {
     });
 
     if (activeSessionId === id) {
-      // Nhảy sang session đầu tiên còn lại của user
       const remaining = sessions.filter(s => s.id !== id && (s.owner === currentUser || (!currentUser && !s.owner)));
       if (remaining.length > 0) {
         setActiveSessionId(remaining[0].id);
@@ -274,7 +354,6 @@ function App() {
     return <UpdateProfile
       onCancel={() => setActiveTab('chat')}
       onSuccess={(newName) => {
-        // Cập nhật lại thông tin user hiển thị nếu cần
         setActiveTab('chat');
       }}
     />;
@@ -306,6 +385,7 @@ function App() {
             currentUserName={currentUserName}
             onNavigateToLogin={() => setActiveTab('login')}
             onNavigateToChangePassword={() => setActiveTab('update-profile')}
+            onLogout={handleLogout}
           />
         )}
 
@@ -316,6 +396,7 @@ function App() {
             currentUser={currentUser}
             currentUserName={currentUserName}
             onNavigateToChangePassword={() => setActiveTab('update-profile')}
+            onLogout={handleLogout}
           />
         )}
       </main>
