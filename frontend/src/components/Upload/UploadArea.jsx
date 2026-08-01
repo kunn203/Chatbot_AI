@@ -4,7 +4,7 @@ import { supabase } from '../../supabaseClient';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
-export default function UploadArea({ materials, setMaterials, currentUser, currentUserName, onNavigateToChangePassword }) {
+export default function UploadArea({ materials, setMaterials, currentUser, currentUserName, onNavigateToChangePassword, setIsSidebarOpen }) {
   const [files, setFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -90,7 +90,10 @@ export default function UploadArea({ materials, setMaterials, currentUser, curre
           owner: currentUser
         });
         
-        if (dbError) console.error("Lỗi khi lưu thông tin file lên Cloud:", dbError);
+        if (dbError) {
+          console.error("Lỗi khi lưu thông tin file lên Cloud:", dbError);
+          alert(`Lỗi lưu DB: ${dbError.message}\n(Gợi ý: Kiểm tra RLS trên bảng rag_materials)`);
+        }
 
         setMaterials(prev => prev.map(m =>
           m.id === newMaterialId ? { ...m, status: 'indexed', progress: 100 } : m
@@ -136,11 +139,19 @@ export default function UploadArea({ materials, setMaterials, currentUser, curre
   };
 
   return (
-    <div className="flex-1 flex flex-col p-8 bg-base-100 overflow-y-auto w-full max-w-6xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
+    <div className="flex-1 flex flex-col p-4 md:p-8 bg-base-100 overflow-y-auto w-full max-w-6xl mx-auto">
+      <div className="flex items-start gap-4 mb-6 md:mb-8">
+        <button 
+          onClick={() => setIsSidebarOpen && setIsSidebarOpen(true)} 
+          className="md:hidden p-2 mt-1 -ml-2 text-gray-600 hover:text-gray-900 transition-colors shrink-0 bg-gray-50 rounded-lg border border-gray-100"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+          </svg>
+        </button>
         <div>
-          <h2 className="text-3xl font-bold text-gray-800 mb-2">Upload File</h2>
-          <p className="text-gray-500">Feed your Chatbot RAG system with new PDFs to expand its knowledge base.</p>
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-1 md:mb-2">Upload File</h2>
+          <p className="text-sm md:text-base text-gray-500">Feed your Chatbot RAG system with new PDFs to expand its knowledge base.</p>
         </div>
       </div>
 

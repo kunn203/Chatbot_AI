@@ -15,6 +15,7 @@ function createDefaultSession(owner = null) {
 
 function App() {
   const [activeTab, setActiveTab] = useState('chat'); // 'chat', 'upload', 'login'
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Trạng thái đóng mở menu trên mobile
 
   // ---- QUẢN LÝ ĐĂNG NHẬP (AUTH BẰNG SUPABASE) ----
   const [currentUser, setCurrentUser] = useState(null);
@@ -60,7 +61,10 @@ function App() {
     }));
 
     const { error } = await supabase.from('rag_sessions').upsert(upsertData);
-    if (error) console.error("Lỗi khi đồng bộ sessions lên Cloud:", error);
+    if (error) {
+      console.error("Lỗi khi đồng bộ sessions lên Cloud:", error);
+      alert(`Lỗi lưu chat lên Cloud: ${error.message}\n(Gợi ý: Kiểm tra lại bảng rag_sessions trên Supabase hoặc tắt RLS)`);
+    }
   }, []);
 
   // ---- HÀM FLUSH: Lưu ngay lập tức (dùng trước khi logout hoặc đóng tab) ----
@@ -102,7 +106,10 @@ function App() {
         .eq('owner', userEmail)
         .order('updated_at', { ascending: false });
 
-      if (sessError) console.error("Lỗi tải sessions:", sessError);
+      if (sessError) {
+        console.error("Lỗi tải sessions:", sessError);
+        alert(`Lỗi tải chat từ Cloud: ${sessError.message}`);
+      }
 
       if (sess && sess.length > 0) {
         setSessions(sess);
@@ -373,6 +380,8 @@ function App() {
         onDeleteSession={handleDeleteSession}
         currentUser={currentUser}
         currentUserName={currentUserName}
+        isSidebarOpen={isSidebarOpen}
+        setIsSidebarOpen={setIsSidebarOpen}
       />
 
       {/* MAIN VIEW AREA */}
@@ -386,6 +395,7 @@ function App() {
             onNavigateToLogin={() => setActiveTab('login')}
             onNavigateToChangePassword={() => setActiveTab('update-profile')}
             onLogout={handleLogout}
+            setIsSidebarOpen={setIsSidebarOpen}
           />
         )}
 
@@ -397,6 +407,7 @@ function App() {
             currentUserName={currentUserName}
             onNavigateToChangePassword={() => setActiveTab('update-profile')}
             onLogout={handleLogout}
+            setIsSidebarOpen={setIsSidebarOpen}
           />
         )}
       </main>

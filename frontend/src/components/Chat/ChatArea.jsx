@@ -57,7 +57,7 @@ function preprocessLaTeX(content) {
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
-export default function ChatArea({ messages, setMessages, currentUser, currentUserName, onNavigateToLogin, onNavigateToChangePassword, onLogout }) {
+export default function ChatArea({ messages, setMessages, currentUser, currentUserName, onNavigateToLogin, onNavigateToChangePassword, onLogout, setIsSidebarOpen }) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
@@ -148,7 +148,16 @@ export default function ChatArea({ messages, setMessages, currentUser, currentUs
     <div className="h-full flex flex-col bg-white w-full">
       {/* Header */}
       <header className="h-16 flex items-center justify-between px-6 border-b border-gray-100 shrink-0 relative">
-        <div className="w-24"></div> {/* Spacer to center title */}
+        <div className="w-24 flex items-center">
+          <button 
+            onClick={() => setIsSidebarOpen && setIsSidebarOpen(true)} 
+            className="md:hidden p-2 -ml-2 text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+            </svg>
+          </button>
+        </div>
         <h2 className="font-bold text-gray-800 tracking-wide text-lg absolute left-1/2 transform -translate-x-1/2">Chatbot AI</h2>
         <div className="w-24 flex justify-end">
           {!currentUser ? (
