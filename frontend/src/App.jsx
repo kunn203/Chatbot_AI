@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Sidebar from './components/Sidebar/Sidebar.jsx';
 import ChatArea from './components/Chat/ChatArea.jsx';
 import UploadArea from './components/Upload/UploadArea.jsx';
@@ -12,6 +12,9 @@ function App() {
   // ---- QUẢN LÝ ĐĂNG NHẬP (AUTH BẰNG SUPABASE) ----
   const [currentUser, setCurrentUser] = useState(null);
   const [currentUserName, setCurrentUserName] = useState('');
+
+  // Cờ chặn effect đồng bộ khi đang logout (tránh ghi đè dữ liệu cloud bằng session rỗng)
+  const isLoggingOut = useRef(false);
 
 
 
@@ -31,6 +34,8 @@ function App() {
   // Hàm tải dữ liệu từ Cloud Supabase
   const loadCloudData = async (userEmail) => {
     if (!userEmail) {
+      // Bật cờ logout TRƯỚC khi reset state → chặn effect đồng bộ ghi đè cloud
+      isLoggingOut.current = true;
       setMaterials([]);
       setSessions([{ id: 'default', title: 'New Conversation', messages: [{ role: 'assistant', content: 'Chào bạn! Bắt đầu một đoạn hội thoại mới nhé. Cần mình giải đáp gì nào?' }] }]);
       setActiveSessionId('default');
@@ -89,6 +94,11 @@ function App() {
   // ---- ĐỒNG BỘ SESSION LÊN CLOUD SUPABASE BẰNG EFFECT ----
   useEffect(() => {
     const saveSessionsToCloud = async () => {
+      // Nếu đang trong quá trình logout → bỏ qua, không ghi đè cloud
+      if (isLoggingOut.current) {
+        isLoggingOut.current = false; // Reset cờ sau khi đã chặn thành công
+        return;
+      }
       if (!currentUser) return;
       const userSessions = sessions.filter(s => s.owner === currentUser);
       if (userSessions.length === 0) return;
