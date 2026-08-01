@@ -1,0 +1,28 @@
+# ===== IDE & Editor =====
+.codegraph/
+.agents/
+.vscode/
+.idea/
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+
+# ===== Node (Frontend) =====
+node_modules/
+dist/
+.env
+.env.local
+.env.*.local
+
+# ===== Python (Backend) =====
+__pycache__/
+*.pyc
+*.pyo
+.env
+venv/
+temp_uploads/
+
+# ===== Logs =====
+*.log
+npm-debug.log*
